@@ -5,6 +5,8 @@ const log = require('yalm');
 log.setLevel("debug");
 var jsonfile = require('jsonfile')
 var file = './data.json'
+const PQueue = require('p-queue');
+const queue = new PQueue({concurrency: 1});
 
 var allDevices = new Object();
 
@@ -49,8 +51,6 @@ function transformOperations(opObj) {
 	return operations;
 }
 
-var count = 0;
-var countFinished = 0;
 methodCall("listDevices", null).then((response) => {
 	response.forEach( ( device ) => {
 		allDevices[ device.ADDRESS ] = Object.assign({}, device);
@@ -64,12 +64,8 @@ methodCall("listDevices", null).then((response) => {
 
 		// Iterate through all PARAMSETS
 		device.PARAMSETS.forEach( (paramset) => {
-			count++;
-
 			// Assign values of each paramset
-			methodCall("getParamset", [device.ADDRESS , paramset]).then((response) => {
-				countFinished++;
-
+			queue.add(() => methodCall("getParamset", [device.ADDRESS , paramset]).then((response) => {
 				// Turn { "SOMETHING": 0.5 } into { "SOMETHING": {"VALUE": 0.5} }
 				let tmp = new Object();
 				for (var key in response) {
@@ -77,14 +73,10 @@ methodCall("listDevices", null).then((response) => {
 				}
 				deepExtend(allDevices[device.ADDRESS]["PARAMSETS"][paramset], tmp);
 			}, (error) => {
-				countFinished++;
 				log.error("getParamset", device.ADDRESS, paramset, "faultCode:"+error.faultCode);
-			});
+			}));
 
-			count++;
-			methodCall("getParamsetDescription", [device.ADDRESS , paramset]).then((response) => {
-				countFinished++;
-
+			queue.add(() => methodCall("getParamsetDescription", [device.ADDRESS , paramset]).then((response) => {
 				deepExtend(allDevices[device.ADDRESS]["PARAMSETS"][paramset], response);
 
 				// Transform to human readable format, see HM_XmlRpc_API.pdf, page 5
@@ -95,26 +87,24 @@ methodCall("listDevices", null).then((response) => {
 					allDevices[device.ADDRESS]["PARAMSETS"][paramset][key]["FLAGS"] = transformFlags( response[key].FLAGS );
 				}
 			}, (error) => {
-				countFinished++;
 				log.error("getParamsetDescription", device.ADDRESS, paramset, "faultCode:"+error.faultCode);
-			});
+			}));
 		});
+	});
+
+	queue.onEmpty().then(() => {
+		log.debug("finished");
+		jsonfile.writeFile(file, allDevices, {spaces: 2}, function (err) {
+			if ( err ) {
+				log.error("jsonfile.writeFile", err);
+			}
+		});
+		clearInterval(interval);
 	});
 }, (error) => {
 	log.error("listDevices", error);
 });
 
 var interval = setInterval(()=>{
-	log.debug(count, countFinished);
-	if ( count == countFinished ) {
-		log.debug("call");
-
-		jsonfile.writeFile(file, allDevices, {spaces: 2}, function (err) {
-			if ( err ) {
-				log.error("jsonfile.writeFile", err);
-			}
-		});
-
-		clearInterval(interval);
-	}
+	log.debug("queue size", queue.size);
 },500);
