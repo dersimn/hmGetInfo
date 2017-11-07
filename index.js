@@ -1,17 +1,36 @@
+const pkg = require('./package.json');
 const deepExtend = require('deep-extend');
 const xmlrpc = require('xmlrpc');
 const util = require('util');
 const log = require('yalm');
-log.setLevel("debug");
 var jsonfile = require('jsonfile')
 var file = './data.json'
 const PQueue = require('p-queue');
 const queue = new PQueue({concurrency: 1});
 
+const config = require('yargs')
+    .usage(pkg.name + ' ' + pkg.version + '\n' + pkg.description + '\n\nUsage: $0 [options]')
+    .describe('verbosity', 'Possible values: "error", "warn", "info", "debug"')
+    .describe('ccu-address', 'IP address of your CCU')
+    .alias({
+        h: 'help',
+        v: 'verbosity'
+    })
+    .default({
+        'verbosity':'debug'
+    })
+    .demandOption([
+        'ccu-address'
+    ])
+    .version()
+    .help('help')
+    .argv;
+log.setLevel(config.verbosity);
+
 var allDevices = new Object();
 
 var clientOptions = {
-	host: '10.30.21.31',
+	host: config.ccuAddress,
 	port: 2001,
 	path: '/'
 }
