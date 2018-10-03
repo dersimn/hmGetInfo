@@ -1,6 +1,6 @@
 const pkg = require('./package.json');
 const deepExtend = require('deep-extend');
-const xmlrpc = require('xmlrpc');
+const xmlrpc = require('homematic-xmlrpc');
 const util = require('util');
 const log = require('yalm');
 var jsonfile = require('jsonfile')
