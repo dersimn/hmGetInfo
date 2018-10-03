@@ -1,38 +1,57 @@
-Get app Values, Paramsets and ParamsetDescriptions from your CCU
+Collect paramsets and paramsetDescriptions from your Homematic CCU as JSON, similar to: 
+
+	  "LEQ1519968:4": {
+	    "ADDRESS": "LEQ1519968:4",
+	    "AES_ACTIVE": 0,
+	    "DIRECTION": 1,
+	    "FLAGS": {
+	      "VISIBLE": true,
+	      "INTERNAL": false,
+	      "TRANSFORM": false,
+	      "SERVICE": false,
+	      "STICKY": false
+	    },
+	    "INDEX": 4,
+	    "LINK_SOURCE_ROLES": "CLIMATECONTROL_RT",
+	    "LINK_TARGET_ROLES": "",
+	    "PARAMSETS": {
+	      "LINK": {},
+	      "VALUES": {
+	        "ACTUAL_TEMPERATURE": {
+	          "VALUE": 18.9,
+	          "CONTROL": "HEATING_CONTROL.TEMPERATURE",
+	          "DEFAULT": 0,
+	          "FLAGS": {
+	            "VISIBLE": true,
+	            "INTERNAL": false,
+	            "TRANSFORM": false,
+	            "SERVICE": false,
+	            "STICKY": false
+	          },
+	          "ID": "ACTUAL_TEMPERATURE",
+	          "MAX": 56,
+	          "MIN": -10,
+	          "OPERATIONS": {
+	            "READ": true,
+	            "WRITE": false,
+	            "EVENT": true
+	          },
+	          "TAB_ORDER": 5,
+	          "TYPE": "FLOAT",
+	          "UNIT": "�C"
+	        },
+
 
 ## Usage
+
+### Native
 
 	git pull https://github.com/dersimn/hmGetInfo
 	cd hmGetInfo
 	npm install
 	node index.js --ccu-address 10.1.1.112
 
-Results will be stored in `data.json`:
+### Docker
 
-	{
-	  "BidCoS-RF": {
-	    "ADDRESS": "BidCoS-RF",
-	    "CHILDREN": [ // ...
-	    ],
-	    "FIRMWARE": "2.29.22",
-	    "FLAGS": {
-	      "VISIBLE": true,
-	      "INTERNAL": false,
-	      "TRANSFORM": false,
-	      "SERVICE": true,
-	      "STICKY": false
-	    },
-	    "INTERFACE": "NEQ0605230",
-	    "PARAMSETS": {
-	      "MASTER": {}
-	    },
-	    "PARENT": "",
-	    "RF_ADDRESS": 4996468,
-	    "ROAMING": 0,
-	    "RX_MODE": 1,
-	    "TYPE": "HM-RCV-50",
-	    "UPDATABLE": 0,
-	    "VERSION": 6
-	  },
-	  "BidCoS-RF:0": {
-	// ...
+	docker run --rm dersimn/hmgetinfo --ccu-address 10.1.1.112 --prefer-stdout > data.json
+

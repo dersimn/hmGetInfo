@@ -1,7 +1,7 @@
 {
   "name": "hmgetinfo",
   "version": "0.0.1",
-  "description": "Get all information from Homematic CCU",
+  "description": "Collect paramsets and paramsetDescriptions from your Homematic CCU as JSON",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
