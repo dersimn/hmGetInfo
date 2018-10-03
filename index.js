@@ -12,6 +12,7 @@ const config = require('yargs')
     .usage(pkg.name + ' ' + pkg.version + '\n' + pkg.description + '\n\nUsage: $0 [options]')
     .describe('verbosity', 'Possible values: "error", "warn", "info", "debug"')
     .describe('ccu-address', 'IP address of your CCU')
+    .describe('prefer-stdout', 'Output JSON to STDOUT instead of file').boolean('prefer-stdout')
     .alias({
         h: 'help',
         v: 'verbosity'
@@ -25,7 +26,12 @@ const config = require('yargs')
     .version()
     .help('help')
     .argv;
-log.setLevel(config.verbosity);
+
+if (!config.preferStdout) {
+	log.setLevel(config.verbosity);
+} else {
+	log.setLevel('eror');
+}
 
 var allDevices = new Object();
 
@@ -113,11 +119,15 @@ methodCall("listDevices", null).then((response) => {
 
 	queue.onEmpty().then(() => {
 		log.debug("finished");
-		jsonfile.writeFile(file, allDevices, {spaces: 2}, function (err) {
-			if ( err ) {
-				log.error("jsonfile.writeFile", err);
-			}
-		});
+		if (config.preferStdout) {
+			console.log(JSON.stringify(allDevices, null, 2));
+		} else {
+			jsonfile.writeFile(file, allDevices, {spaces: 2}, function (err) {
+				if ( err ) {
+					log.error("jsonfile.writeFile", err);
+				}
+			});
+		}
 		clearInterval(interval);
 	});
 }, (error) => {
