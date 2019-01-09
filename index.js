@@ -136,4 +136,4 @@ methodCall("listDevices", null).then((response) => {
 
 var interval = setInterval(()=>{
 	log.debug("queue size", queue.size);
-},500);
+},1000);
