@@ -1,4 +1,5 @@
-Collect paramsets and paramsetDescriptions from your Homematic CCU as JSON, similar to: 
+Uses Homematic XML-RPC Api to collect paramsets and paramsetDescriptions from your CCU and stores it as JSON.  
+Output will look like this:
 
 	  "LEQ1519968:4": {
 	    "ADDRESS": "LEQ1519968:4",
@@ -40,7 +41,10 @@ Collect paramsets and paramsetDescriptions from your Homematic CCU as JSON, simi
 	          "TYPE": "FLOAT",
 	          "UNIT": "�C"
 	        },
+	    ....
+	    ..    
 
+This script uses `listDevices`, `getParamset` and `getParamsetDescription` to generate this output. The raw output from CCU will be reformatted and merged into one big JSON object (see above).
 
 ## Usage
 
