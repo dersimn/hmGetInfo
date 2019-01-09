@@ -13,7 +13,7 @@ const config = require('yargs')
     .describe('verbosity', 'Possible values: "error", "warn", "info", "debug"')
     .describe('ccu-address', 'IP address of your CCU')
     .describe('ccu-port', 'Port of your CCU (use to switch between RFD and HmIP)')
-    .describe('prefer-stdout', 'Output JSON to STDOUT instead of file').boolean('prefer-stdout')
+    .describe('stdout', 'Output JSON to STDOUT instead of file').boolean('stdout')
     .alias({
     	c: 'ccu-address',
     	p: 'ccu-port',
@@ -31,7 +31,7 @@ const config = require('yargs')
     .help('help')
     .argv;
 
-if (!config.preferStdout) {
+if (!config.stdout) {
 	log.setLevel(config.verbosity);
 } else {
 	log.setLevel('eror');
@@ -123,7 +123,7 @@ methodCall("listDevices", null).then((response) => {
 
 	queue.onEmpty().then(() => {
 		log.debug("finished");
-		if (config.preferStdout) {
+		if (config.stdout) {
 			console.log(JSON.stringify(allDevices, null, 2));
 		} else {
 			jsonfile.writeFile(file, allDevices, {spaces: 2}, function (err) {

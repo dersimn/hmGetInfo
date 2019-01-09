@@ -57,5 +57,5 @@ For HomematicIP, use:
 
 ### Docker
 
-	docker run --rm dersimn/hmgetinfo --ccu-address 10.1.1.112 --prefer-stdout > data.json
+	docker run --rm dersimn/hmgetinfo --c 10.1.1.112 --stdout > data.json
 
