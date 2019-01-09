@@ -49,7 +49,11 @@ Collect paramsets and paramsetDescriptions from your Homematic CCU as JSON, simi
 	git pull https://github.com/dersimn/hmGetInfo
 	cd hmGetInfo
 	npm install
-	node index.js --ccu-address 10.1.1.112
+	node index.js -c 10.1.1.112
+
+For HomematicIP, use:
+
+	node index.js -c 10.1.1.112 -p 2001
 
 ### Docker
 

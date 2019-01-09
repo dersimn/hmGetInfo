@@ -12,13 +12,17 @@ const config = require('yargs')
     .usage(pkg.name + ' ' + pkg.version + '\n' + pkg.description + '\n\nUsage: $0 [options]')
     .describe('verbosity', 'Possible values: "error", "warn", "info", "debug"')
     .describe('ccu-address', 'IP address of your CCU')
+    .describe('ccu-port', 'Port of your CCU (use to switch between RFD and HmIP)')
     .describe('prefer-stdout', 'Output JSON to STDOUT instead of file').boolean('prefer-stdout')
     .alias({
+    	c: 'ccu-address',
+    	p: 'ccu-port',
         h: 'help',
         v: 'verbosity'
     })
     .default({
-        'verbosity':'debug'
+        'verbosity':'debug',
+        'ccu-port': 2001
     })
     .demandOption([
         'ccu-address'
@@ -37,7 +41,7 @@ var allDevices = new Object();
 
 var clientOptions = {
 	host: config.ccuAddress,
-	port: 2001,
+	port: config.ccuPort,
 	path: '/'
 }
 
