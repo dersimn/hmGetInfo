@@ -57,7 +57,7 @@ This script uses `listDevices`, `getParamset` and `getParamsetDescription` to ge
 
 For HomematicIP, use:
 
-	node index.js -c 10.1.1.112 -p 2001
+	node index.js -c 10.1.1.112 -p 2010
 
 ### Docker
 
