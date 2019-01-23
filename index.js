@@ -82,6 +82,8 @@ function transformOperations(opObj) {
 
 methodCall("listDevices", null).then((response) => {
 	response.forEach( ( device ) => {
+        if (/^BidCoS/.test(device.ADDRESS)) return; // Skip BidCoS devices
+        
 		allDevices[ device.ADDRESS ] = Object.assign({}, device);
 		allDevices[device.ADDRESS]["FLAGS"] = transformFlags( allDevices[device.ADDRESS]["FLAGS"] );
 
