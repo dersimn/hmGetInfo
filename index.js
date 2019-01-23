@@ -80,17 +80,29 @@ function transformOperations(opObj) {
     return operations;
 }
 
+function procAddress(address) {
+    if (/:[0-9]+$/.test(address)) {
+        let match = /([A-Za-z0-9\-]+):([0-9]+)/.exec(address);
+        return [match[1], match[2]];
+    } else {
+        return [address, '_root'];
+    }
+}
+
 methodCall('listDevices', null).then((response) => {
     response.forEach( ( device ) => {
         if (/^BidCoS/.test(device.ADDRESS)) return; // Skip BidCoS devices
 
-        allDevices[device.ADDRESS] = Object.assign({}, device);
-        allDevices[device.ADDRESS]['FLAGS'] = transformFlags( allDevices[device.ADDRESS]['FLAGS'] );
+        [serial, channel] = procAddress(device.ADDRESS);
+
+        allDevices[serial] = Object.assign({}, allDevices[serial]); // Initialize object if not exists yet
+        allDevices[serial][channel] = Object.assign({}, device);    // Initialize object if not exists yet
+        allDevices[serial][channel]['FLAGS'] = transformFlags( allDevices[serial][channel]['FLAGS'] );
 
         // Convert PARAMSETS from Array to Object
-        allDevices[device.ADDRESS]['PARAMSETS'] = new Object();
+        allDevices[serial][channel]['PARAMSETS'] = new Object();
         device.PARAMSETS.forEach( (paramset) => {
-            allDevices[device.ADDRESS]['PARAMSETS'][paramset] = new Object();
+            allDevices[serial][channel]['PARAMSETS'][paramset] = new Object();
         });
 
         // Iterate through all PARAMSETS
@@ -102,20 +114,20 @@ methodCall('listDevices', null).then((response) => {
                 for (var key in response) {
                     tmp[key] = { 'VALUE': response[key] };
                 }
-                deepExtend(allDevices[device.ADDRESS]['PARAMSETS'][paramset], tmp);
+                deepExtend(allDevices[serial][channel]['PARAMSETS'][paramset], tmp);
             }).catch((err) => {
                 log.error('getParamset', device.ADDRESS, paramset, err.faultCode, err.faultString);
             }));
 
             queue.add(() => methodCall('getParamsetDescription', [device.ADDRESS , paramset]).then((response) => {
-                deepExtend(allDevices[device.ADDRESS]['PARAMSETS'][paramset], response);
+                deepExtend(allDevices[serial][channel]['PARAMSETS'][paramset], response);
 
                 // Transform to human readable format, see HM_XmlRpc_API.pdf, page 5
                 for (let key in response) {
-                    allDevices[device.ADDRESS]['PARAMSETS'][paramset][key]['OPERATIONS'] = transformOperations(response[key].OPERATIONS);
+                    allDevices[serial][channel]['PARAMSETS'][paramset][key]['OPERATIONS'] = transformOperations(response[key].OPERATIONS);
                 }
                 for (let key in response) {
-                    allDevices[device.ADDRESS]['PARAMSETS'][paramset][key]['FLAGS'] = transformFlags(response[key].FLAGS);
+                    allDevices[serial][channel]['PARAMSETS'][paramset][key]['FLAGS'] = transformFlags(response[key].FLAGS);
                 }
             }).catch((err) => {
                 log.error('getParamsetDescription', device.ADDRESS, paramset, err.faultCode, err.faultString);
