@@ -93,7 +93,7 @@ methodCall('listDevices', null).then((response) => {
     response.forEach( ( device ) => {
         if (/^BidCoS/.test(device.ADDRESS)) return; // Skip BidCoS devices
 
-        [serial, channel] = procAddress(device.ADDRESS);
+        let [serial, channel] = procAddress(device.ADDRESS);
 
         allDevices[serial] = Object.assign({}, allDevices[serial]); // Initialize object if not exists yet
         allDevices[serial][channel] = Object.assign({}, device);    // Initialize object if not exists yet
