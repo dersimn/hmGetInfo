@@ -6,7 +6,12 @@ const log = require('yalm');
 var jsonfile = require('jsonfile')
 var file = './data.json'
 const PQueue = require('p-queue');
-const queue = new PQueue({concurrency: 1});
+const queue = new PQueue({
+    concurrency: 1,
+    autoStart: false,
+    interval: 500,
+    intervalCap: 1
+});
 
 const config = require('yargs')
     .usage(pkg.name + ' ' + pkg.version + '\n' + pkg.description + '\n\nUsage: $0 [options]')
@@ -135,7 +140,7 @@ methodCall('listDevices', null).then((response) => {
         });
     });
 
-    queue.onEmpty().then(() => {
+    queue.onIdle().then(() => {
         log.debug('finished');
         if (config.stdout) {
             console.log(JSON.stringify(allDevices, null, 2));
@@ -145,7 +150,10 @@ methodCall('listDevices', null).then((response) => {
             });
         }
         clearInterval(interval);
+    }).catch((err) => {
+        log.error('queue error', err);
     });
+    queue.start();
 }).catch((err) => {
     log.error('listDevices', err);
 });
