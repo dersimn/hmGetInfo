@@ -12,6 +12,12 @@ const queue = new PQueue({
     interval: 500,
     intervalCap: 1
 });
+const cliProgress = require('cli-progress');
+const progressbar = new cliProgress.Bar({
+    format: 'Collecting paramsets [{bar}] {percentage}% | ETA: {eta}s | {value}/{total}',
+    etaBuffer: 20,
+    fps: 5
+});
 
 const config = require('yargs')
     .usage(pkg.name + ' ' + pkg.version + '\n' + pkg.description + '\n\nUsage: $0 [options]')
@@ -145,19 +151,27 @@ methodCall('listDevices', null).then((response) => {
         if (config.stdout) {
             console.log(JSON.stringify(allDevices, null, 2));
         } else {
+            clearInterval(interval);
+
             jsonfile.writeFile(file, allDevices, {spaces: 2}, (err) => {
                 if (err) log.error('jsonfile.writeFile', err);
             });
+
+            progressbar.stop();
         }
-        clearInterval(interval);
     }).catch((err) => {
         log.error('queue error', err);
     });
     queue.start();
+
+    if (!config.stdout) {
+        var max_queuesize = queue.size;
+        progressbar.start(max_queuesize, 0);
+
+        var interval = setInterval(()=>{
+            progressbar.update(max_queuesize-queue.size);
+        },100);
+    }
 }).catch((err) => {
     log.error('listDevices', err);
 });
-
-var interval = setInterval(()=>{
-    log.debug('queue size', queue.size);
-},1000);
