@@ -1,8 +1,10 @@
 FROM node:slim
 
-COPY . /node
+COPY index.js /app/index.js
+COPY package.json /app/package.json
 
-RUN cd /node && \
-	npm install
+WORKDIR /app
 
-ENTRYPOINT [ "node", "/node/index.js" ]
+RUN npm install
+
+ENTRYPOINT [ "node", "index.js" ]
