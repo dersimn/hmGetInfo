@@ -66,42 +66,34 @@ function methodCall(method, parameters) {
 }
 
 function transformFlags(flagObject) {
-    const flags = new Object();
-
-    flags.VISIBLE = Boolean(flagObject & 0x01);
-    flags.INTERNAL = Boolean(flagObject & 0x02);
-    flags.TRANSFORM = Boolean(flagObject & 0x04);
-    flags.SERVICE = Boolean(flagObject & 0x08);
-    flags.STICKY = Boolean(flagObject & 0x10);
-
-    return flags;
+    return {
+        VISIBLE: Boolean(flagObject & 0x01),
+        INTERNAL: Boolean(flagObject & 0x02),
+        TRANSFORM: Boolean(flagObject & 0x04),
+        SERVICE: Boolean(flagObject & 0x08),
+        STICKY: Boolean(flagObject & 0x10)
+    };
 }
 
 function transformOperations(opObject) {
-    const operations = new Object();
-
-    operations.READ = Boolean(opObject & 1);
-    operations.WRITE = Boolean(opObject & 2);
-    operations.EVENT = Boolean(opObject & 4);
-
-    return operations;
+    return {
+        READ: Boolean(opObject & 1),
+        WRITE: Boolean(opObject & 2),
+        EVENT: Boolean(opObject & 4)
+    };
 }
 
 function procAddress(address) {
     if (/:\d+$/.test(address)) {
-        const match = /([A-Za-z\d\-]+):(\d+)/.exec(address);
+        const match = /([A-Za-z\d-]+):(\d+)/.exec(address);
         return [match[1], match[2]];
     }
 
-    return [address, '_root'];
+    return [address, 'root'];
 }
 
 methodCall('listDevices', null).then(response => {
     response.forEach(device => {
-        if (device.ADDRESS.startsWith('BidCoS')) {
-            return;
-        } // Skip BidCoS devices
-
         const [serial, channel] = procAddress(device.ADDRESS);
 
         allDevices[serial] = Object.assign({}, allDevices[serial]); // Initialize object if not exists yet
@@ -109,9 +101,9 @@ methodCall('listDevices', null).then(response => {
         allDevices[serial][channel].FLAGS = transformFlags(allDevices[serial][channel].FLAGS);
 
         // Convert PARAMSETS from Array to Object
-        allDevices[serial][channel].PARAMSETS = new Object();
+        allDevices[serial][channel].PARAMSETS = {};
         device.PARAMSETS.forEach(paramset => {
-            allDevices[serial][channel].PARAMSETS[paramset] = new Object();
+            allDevices[serial][channel].PARAMSETS[paramset] = {};
         });
 
         // Iterate through all PARAMSETS
@@ -119,7 +111,7 @@ methodCall('listDevices', null).then(response => {
             // Assign values of each paramset
             queue.add(() => methodCall('getParamset', [device.ADDRESS, paramset]).then(response => {
                 // Turn { FOO: 0.5, BAR: 1.0 } into { FOO: {VALUE: 0.5}, BAR: {VALUE: 1.0} }
-                const temporary = new Object();
+                const temporary = {};
                 for (const key in response) {
                     temporary[key] = {VALUE: response[key]};
                 }
@@ -162,11 +154,11 @@ methodCall('listDevices', null).then(response => {
     });
     queue.start();
 
-    const max_queuesize = queue.size;
-    progressbar.start(max_queuesize, 0);
+    const maxQueuesize = queue.size;
+    progressbar.start(maxQueuesize, 0);
 
-    var interval = setInterval(() => {
-        progressbar.update(max_queuesize - queue.size);
+    const interval = setInterval(() => {
+        progressbar.update(maxQueuesize - queue.size);
     }, 100);
 }).catch(error => {
     log.error('listDevices', error);
