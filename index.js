@@ -1,22 +1,8 @@
 const pkg = require('./package.json');
+
 const deepExtend = require('deep-extend');
 const xmlrpc = require('homematic-xmlrpc');
-const util = require('util');
-const log = require('yalm');
-const jsonfile = require('jsonfile')
-const PQueue = require('p-queue');
-const queue = new PQueue({
-    concurrency: 1,
-    autoStart: false,
-    interval: 500,
-    intervalCap: 1
-});
-const cliProgress = require('cli-progress');
-const progressbar = new cliProgress.Bar({
-    format: 'Collecting paramsets [{bar}] {percentage}% | ETA: {eta}s | {value}/{total}',
-    etaBuffer: 20,
-    fps: 5
-});
+const jsonfile = require('jsonfile');
 
 const config = require('yargs')
     .usage(pkg.name + ' ' + pkg.version + '\n' + pkg.description + '\n\nUsage: $0 [options]')
@@ -41,17 +27,31 @@ const config = require('yargs')
     .help('help')
     .argv;
 
+const PQueue = require('p-queue');
+const queue = new PQueue({
+    concurrency: 1,
+    autoStart: false,
+    interval: 500,
+    intervalCap: 1
+});
+
+const cliProgress = require('cli-progress');
+const progressbar = new cliProgress.Bar({
+    format: 'Collecting paramsets [{bar}] {percentage}% | ETA: {eta}s | {value}/{total}',
+    etaBuffer: 20,
+    fps: 5
+});
+
+const log = require('yalm');
 log.setLevel(config.verbosity);
 
-var allDevices = new Object();
+const allDevices = {};
 
-var clientOptions = {
+const client = xmlrpc.createClient({
     host: config.ccuAddress,
     port: config.ccuPort,
     path: '/'
-}
-
-var client = xmlrpc.createClient(clientOptions)
+});
 
 function methodCall(method, parameters) {
     return new Promise((resolve, reject) => {
