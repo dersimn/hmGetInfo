@@ -1,6 +1,4 @@
 const pkg = require('./package.json');
-
-const deepExtend = require('deep-extend');
 const xmlrpc = require('homematic-xmlrpc');
 const jsonfile = require('jsonfile');
 
@@ -27,23 +25,13 @@ const config = require('yargs')
     .help('help')
     .argv;
 
-const PQueue = require('p-queue');
-const queue = new PQueue({
-    concurrency: 1,
-    autoStart: false,
-    interval: 500,
-    intervalCap: 1
-});
-
-const cliProgress = require('cli-progress');
-const progressbar = new cliProgress.Bar({
-    format: 'Collecting paramsets [{bar}] {percentage}% | ETA: {eta}s | {value}/{total}',
-    etaBuffer: 20,
-    fps: 5
-});
-
 const log = require('yalm');
 log.setLevel(config.verbosity);
+
+const cliProgress = require('cli-progress');
+const progressBar = new cliProgress.Bar({
+    format: 'Collecting paramsets [{bar}] {percentage}% | ETA: {eta}s | {value}/{total}'
+});
 
 const allDevices = {};
 
@@ -51,6 +39,62 @@ const client = xmlrpc.createClient({
     host: config.ccuAddress,
     port: config.ccuPort,
     path: '/'
+});
+
+(async () => {
+    const devices = await methodCall('listDevices', null);
+    progressBar.start(devices.length);
+
+    for (const device of devices) {
+        const [serial, channel] = procAddress(device.ADDRESS);
+        log.debug(serial, channel);
+
+        allDevices[serial] ||= {}; // Initialize object if not exists yet
+        allDevices[serial][channel] = {
+            ...device,
+            FLAGS: transformFlags(device.FLAGS),
+            PARAMSETS: Object.fromEntries(device.PARAMSETS.map(p => [p, null])) // Turn Array into empty Object
+        };
+
+        for (const paramsetName of device.PARAMSETS) {
+            // Section: getParamsetDescription
+            log.debug('getParamsetDescription', serial, channel, paramsetName);
+
+            const paramsetDescription = await methodCall('getParamsetDescription', [device.ADDRESS, paramsetName]);
+            allDevices[serial][channel].PARAMSETS[paramsetName] = paramsetDescription;
+
+            // Transform to human readable format, see HM_XmlRpc_API.pdf, page 5
+            for (const [param, description] of Object.entries(paramsetDescription)) {
+                allDevices[serial][channel].PARAMSETS[paramsetName][param].OPERATIONS = transformOperations(description.OPERATIONS);
+                allDevices[serial][channel].PARAMSETS[paramsetName][param].FLAGS = transformOperations(description.FLAGS);
+            }
+
+            // Section: getParamset
+            log.debug('getParamset', serial, channel, paramsetName);
+            try {
+                const paramset = await methodCall('getParamset', [device.ADDRESS, paramsetName]);
+
+                // Turn { FOO: 0.5, BAR: 1.0 } into { FOO: {VALUE: 0.5}, BAR: {VALUE: 1.0} }
+                for (const [param, value] of Object.entries(paramset)) {
+                    allDevices[serial][channel].PARAMSETS[paramsetName][param].VALUE = value;
+                }
+            } catch (error) {
+                log.error('getParamset', serial, channel, paramsetName, error);
+            }
+        }
+
+        progressBar.increment();
+    }
+
+    jsonfile.writeFile(config.outputDestination, allDevices, {spaces: 2}, error => {
+        if (error) {
+            log.error('jsonfile.writeFile', error);
+        }
+    });
+
+    progressBar.stop();
+})().catch(error => {
+    log.error(error);
 });
 
 function methodCall(method, parameters) {
@@ -91,75 +135,3 @@ function procAddress(address) {
 
     return [address, 'root'];
 }
-
-methodCall('listDevices', null).then(response => {
-    response.forEach(device => {
-        const [serial, channel] = procAddress(device.ADDRESS);
-
-        allDevices[serial] = Object.assign({}, allDevices[serial]); // Initialize object if not exists yet
-        allDevices[serial][channel] = Object.assign({}, device); // Initialize object if not exists yet
-        allDevices[serial][channel].FLAGS = transformFlags(allDevices[serial][channel].FLAGS);
-
-        // Convert PARAMSETS from Array to Object
-        allDevices[serial][channel].PARAMSETS = {};
-        device.PARAMSETS.forEach(paramset => {
-            allDevices[serial][channel].PARAMSETS[paramset] = {};
-        });
-
-        // Iterate through all PARAMSETS
-        device.PARAMSETS.forEach(paramset => {
-            // Assign values of each paramset
-            queue.add(() => methodCall('getParamset', [device.ADDRESS, paramset]).then(response => {
-                // Turn { FOO: 0.5, BAR: 1.0 } into { FOO: {VALUE: 0.5}, BAR: {VALUE: 1.0} }
-                const temporary = {};
-                for (const key in response) {
-                    temporary[key] = {VALUE: response[key]};
-                }
-
-                deepExtend(allDevices[serial][channel].PARAMSETS[paramset], temporary);
-            }).catch(error => {
-                log.error('getParamset', device.ADDRESS, paramset, error.faultCode, error.faultString);
-            }));
-
-            queue.add(() => methodCall('getParamsetDescription', [device.ADDRESS, paramset]).then(response => {
-                deepExtend(allDevices[serial][channel].PARAMSETS[paramset], response);
-
-                // Transform to human readable format, see HM_XmlRpc_API.pdf, page 5
-                for (const key in response) {
-                    allDevices[serial][channel].PARAMSETS[paramset][key].OPERATIONS = transformOperations(response[key].OPERATIONS);
-                }
-
-                for (const key in response) {
-                    allDevices[serial][channel].PARAMSETS[paramset][key].FLAGS = transformFlags(response[key].FLAGS);
-                }
-            }).catch(error => {
-                log.error('getParamsetDescription', device.ADDRESS, paramset, error.faultCode, error.faultString);
-            }));
-        });
-    });
-
-    queue.onIdle().then(() => {
-        log.debug('finished');
-        clearInterval(interval);
-
-        jsonfile.writeFile(config.outputDestination, allDevices, {spaces: 2}, err => {
-            if (err) {
-                log.error('jsonfile.writeFile', err);
-            }
-        });
-
-        progressbar.stop();
-    }).catch(error => {
-        log.error('queue error', error);
-    });
-    queue.start();
-
-    const maxQueuesize = queue.size;
-    progressbar.start(maxQueuesize, 0);
-
-    const interval = setInterval(() => {
-        progressbar.update(maxQueuesize - queue.size);
-    }, 100);
-}).catch(error => {
-    log.error('listDevices', error);
-});

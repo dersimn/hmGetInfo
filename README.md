@@ -12,13 +12,13 @@ This script uses `listDevices`, `getParamset` and `getParamsetDescription` to ge
 	git pull https://github.com/dersimn/hmGetInfo
 	cd hmGetInfo
 	npm install
-	node index.js -c 10.1.1.112
+    mkdir output
+	node index.js -c 10.1.1.150
 
 For Homematic IP, just change the port:
 
-	node index.js -c 10.1.1.112 -p 2010
+	node index.js -c 10.1.1.150 -p 2010
 
 ### Docker
 
-	docker run --rm dersimn/hmgetinfo -c 10.1.1.112 --stdout > data.json
-
+	docker run -it --rm -v $(pwd):/app/output dersimn/hmgetinfo -c 10.1.1.150

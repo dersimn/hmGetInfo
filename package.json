@@ -18,10 +18,8 @@
   "homepage": "https://github.com/dersimn/hmGetInfo#readme",
   "dependencies": {
     "cli-progress": "^2.1.1",
-    "deep-extend": "^0.5.0",
     "homematic-xmlrpc": "^1.0.2",
     "jsonfile": "^4.0.0",
-    "p-queue": "^3.0.0",
     "yalm": "^4.1.0",
     "yargs": "^10.0.3"
   },
@@ -29,6 +27,20 @@
     "xo": "^0.34.2"
   },
   "xo": {
-    "space": 4
+    "space": 4,
+    "rules": {
+      "unicorn/prevent-abbreviations": [
+        "warn",
+        {
+          "whitelist": {
+            "pkg": true,
+            "tmp": true,
+            "obj": true,
+            "param": true
+          }
+        }
+      ],
+      "no-await-in-loop": "off"
+    }
   }
 }
