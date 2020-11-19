@@ -24,7 +24,6 @@ const config = require('yargs')
     .describe('verbosity', 'Possible values: "error", "warn", "info", "debug"')
     .describe('ccu-address', 'IP address of your CCU')
     .describe('ccu-port', 'Port of your CCU (use to switch between RFD and HmIP)')
-    .describe('stdout', 'Output JSON to STDOUT instead of file').boolean('stdout')
     .alias({
         c: 'ccu-address',
         p: 'ccu-port',
@@ -42,11 +41,7 @@ const config = require('yargs')
     .help('help')
     .argv;
 
-if (!config.stdout) {
-    log.setLevel(config.verbosity);
-} else {
-    log.setLevel('eror');
-}
+log.setLevel(config.verbosity);
 
 var allDevices = new Object();
 
@@ -148,30 +143,24 @@ methodCall('listDevices', null).then((response) => {
 
     queue.onIdle().then(() => {
         log.debug('finished');
-        if (config.stdout) {
-            console.log(JSON.stringify(allDevices, null, 2));
-        } else {
-            clearInterval(interval);
+        clearInterval(interval);
 
-            jsonfile.writeFile(file, allDevices, {spaces: 2}, (err) => {
-                if (err) log.error('jsonfile.writeFile', err);
-            });
+        jsonfile.writeFile(file, allDevices, {spaces: 2}, (err) => {
+            if (err) log.error('jsonfile.writeFile', err);
+        });
 
-            progressbar.stop();
-        }
+        progressbar.stop();
     }).catch((err) => {
         log.error('queue error', err);
     });
     queue.start();
 
-    if (!config.stdout) {
-        var max_queuesize = queue.size;
-        progressbar.start(max_queuesize, 0);
+    var max_queuesize = queue.size;
+    progressbar.start(max_queuesize, 0);
 
-        var interval = setInterval(()=>{
-            progressbar.update(max_queuesize-queue.size);
-        },100);
-    }
+    var interval = setInterval(()=>{
+        progressbar.update(max_queuesize-queue.size);
+    },100);
 }).catch((err) => {
     log.error('listDevices', err);
 });
