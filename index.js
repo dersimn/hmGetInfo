@@ -3,8 +3,7 @@ const deepExtend = require('deep-extend');
 const xmlrpc = require('homematic-xmlrpc');
 const util = require('util');
 const log = require('yalm');
-var jsonfile = require('jsonfile')
-var file = './data.json'
+const jsonfile = require('jsonfile')
 const PQueue = require('p-queue');
 const queue = new PQueue({
     concurrency: 1,
@@ -32,7 +31,8 @@ const config = require('yargs')
     })
     .default({
         'verbosity':'debug',
-        'ccu-port': 2001
+        'ccu-port': 2001,
+        'outputDestination': './output/data.json'
     })
     .demandOption([
         'ccu-address'
@@ -145,7 +145,7 @@ methodCall('listDevices', null).then((response) => {
         log.debug('finished');
         clearInterval(interval);
 
-        jsonfile.writeFile(file, allDevices, {spaces: 2}, (err) => {
+        jsonfile.writeFile(config.outputDestination, allDevices, {spaces: 2}, (err) => {
             if (err) log.error('jsonfile.writeFile', err);
         });
 
