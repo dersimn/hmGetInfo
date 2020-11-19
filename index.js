@@ -16,9 +16,9 @@ const config = require('yargs')
         v: 'verbosity'
     })
     .default({
-        'verbosity':'debug',
+        verbosity: 'debug',
         'ccu-port': 2001,
-        'outputDestination': './output/data.json'
+        outputDestination: './output/data.json'
     })
     .demandOption([
         'ccu-address'
@@ -56,7 +56,7 @@ const client = xmlrpc.createClient({
 function methodCall(method, parameters) {
     return new Promise((resolve, reject) => {
         client.methodCall(method, parameters, (error, value) => {
-            if ( error ) {
+            if (error) {
                 reject(error);
             } else {
                 resolve(value);
@@ -65,78 +65,83 @@ function methodCall(method, parameters) {
     });
 }
 
-function transformFlags(flagObj) {
-    let flags = new Object();
+function transformFlags(flagObject) {
+    const flags = new Object();
 
-    flags.VISIBLE   = ( flagObj & 0x01 ) ? true : false;
-    flags.INTERNAL  = ( flagObj & 0x02 ) ? true : false;
-    flags.TRANSFORM = ( flagObj & 0x04 ) ? true : false;
-    flags.SERVICE   = ( flagObj & 0x08 ) ? true : false;
-    flags.STICKY    = ( flagObj & 0x10 ) ? true : false;
+    flags.VISIBLE = Boolean(flagObject & 0x01);
+    flags.INTERNAL = Boolean(flagObject & 0x02);
+    flags.TRANSFORM = Boolean(flagObject & 0x04);
+    flags.SERVICE = Boolean(flagObject & 0x08);
+    flags.STICKY = Boolean(flagObject & 0x10);
 
     return flags;
 }
-function transformOperations(opObj) {
-    let operations = new Object();
 
-    operations.READ  = ( opObj & 1 ) ? true : false;
-    operations.WRITE = ( opObj & 2 ) ? true : false;
-    operations.EVENT = ( opObj & 4 ) ? true : false;
+function transformOperations(opObject) {
+    const operations = new Object();
+
+    operations.READ = Boolean(opObject & 1);
+    operations.WRITE = Boolean(opObject & 2);
+    operations.EVENT = Boolean(opObject & 4);
 
     return operations;
 }
 
 function procAddress(address) {
-    if (/:[0-9]+$/.test(address)) {
-        let match = /([A-Za-z0-9\-]+):([0-9]+)/.exec(address);
+    if (/:\d+$/.test(address)) {
+        const match = /([A-Za-z\d\-]+):(\d+)/.exec(address);
         return [match[1], match[2]];
-    } else {
-        return [address, '_root'];
     }
+
+    return [address, '_root'];
 }
 
-methodCall('listDevices', null).then((response) => {
-    response.forEach( ( device ) => {
-        if (/^BidCoS/.test(device.ADDRESS)) return; // Skip BidCoS devices
+methodCall('listDevices', null).then(response => {
+    response.forEach(device => {
+        if (device.ADDRESS.startsWith('BidCoS')) {
+            return;
+        } // Skip BidCoS devices
 
-        let [serial, channel] = procAddress(device.ADDRESS);
+        const [serial, channel] = procAddress(device.ADDRESS);
 
         allDevices[serial] = Object.assign({}, allDevices[serial]); // Initialize object if not exists yet
-        allDevices[serial][channel] = Object.assign({}, device);    // Initialize object if not exists yet
-        allDevices[serial][channel]['FLAGS'] = transformFlags( allDevices[serial][channel]['FLAGS'] );
+        allDevices[serial][channel] = Object.assign({}, device); // Initialize object if not exists yet
+        allDevices[serial][channel].FLAGS = transformFlags(allDevices[serial][channel].FLAGS);
 
         // Convert PARAMSETS from Array to Object
-        allDevices[serial][channel]['PARAMSETS'] = new Object();
-        device.PARAMSETS.forEach( (paramset) => {
-            allDevices[serial][channel]['PARAMSETS'][paramset] = new Object();
+        allDevices[serial][channel].PARAMSETS = new Object();
+        device.PARAMSETS.forEach(paramset => {
+            allDevices[serial][channel].PARAMSETS[paramset] = new Object();
         });
 
         // Iterate through all PARAMSETS
-        device.PARAMSETS.forEach( (paramset) => {
+        device.PARAMSETS.forEach(paramset => {
             // Assign values of each paramset
-            queue.add(() => methodCall('getParamset', [device.ADDRESS , paramset]).then((response) => {
+            queue.add(() => methodCall('getParamset', [device.ADDRESS, paramset]).then(response => {
                 // Turn { FOO: 0.5, BAR: 1.0 } into { FOO: {VALUE: 0.5}, BAR: {VALUE: 1.0} }
-                let tmp = new Object();
-                for (var key in response) {
-                    tmp[key] = { 'VALUE': response[key] };
+                const temporary = new Object();
+                for (const key in response) {
+                    temporary[key] = {VALUE: response[key]};
                 }
-                deepExtend(allDevices[serial][channel]['PARAMSETS'][paramset], tmp);
-            }).catch((err) => {
-                log.error('getParamset', device.ADDRESS, paramset, err.faultCode, err.faultString);
+
+                deepExtend(allDevices[serial][channel].PARAMSETS[paramset], temporary);
+            }).catch(error => {
+                log.error('getParamset', device.ADDRESS, paramset, error.faultCode, error.faultString);
             }));
 
-            queue.add(() => methodCall('getParamsetDescription', [device.ADDRESS , paramset]).then((response) => {
-                deepExtend(allDevices[serial][channel]['PARAMSETS'][paramset], response);
+            queue.add(() => methodCall('getParamsetDescription', [device.ADDRESS, paramset]).then(response => {
+                deepExtend(allDevices[serial][channel].PARAMSETS[paramset], response);
 
                 // Transform to human readable format, see HM_XmlRpc_API.pdf, page 5
-                for (let key in response) {
-                    allDevices[serial][channel]['PARAMSETS'][paramset][key]['OPERATIONS'] = transformOperations(response[key].OPERATIONS);
+                for (const key in response) {
+                    allDevices[serial][channel].PARAMSETS[paramset][key].OPERATIONS = transformOperations(response[key].OPERATIONS);
                 }
-                for (let key in response) {
-                    allDevices[serial][channel]['PARAMSETS'][paramset][key]['FLAGS'] = transformFlags(response[key].FLAGS);
+
+                for (const key in response) {
+                    allDevices[serial][channel].PARAMSETS[paramset][key].FLAGS = transformFlags(response[key].FLAGS);
                 }
-            }).catch((err) => {
-                log.error('getParamsetDescription', device.ADDRESS, paramset, err.faultCode, err.faultString);
+            }).catch(error => {
+                log.error('getParamsetDescription', device.ADDRESS, paramset, error.faultCode, error.faultString);
             }));
         });
     });
@@ -145,22 +150,24 @@ methodCall('listDevices', null).then((response) => {
         log.debug('finished');
         clearInterval(interval);
 
-        jsonfile.writeFile(config.outputDestination, allDevices, {spaces: 2}, (err) => {
-            if (err) log.error('jsonfile.writeFile', err);
+        jsonfile.writeFile(config.outputDestination, allDevices, {spaces: 2}, err => {
+            if (err) {
+                log.error('jsonfile.writeFile', err);
+            }
         });
 
         progressbar.stop();
-    }).catch((err) => {
-        log.error('queue error', err);
+    }).catch(error => {
+        log.error('queue error', error);
     });
     queue.start();
 
-    var max_queuesize = queue.size;
+    const max_queuesize = queue.size;
     progressbar.start(max_queuesize, 0);
 
-    var interval = setInterval(()=>{
-        progressbar.update(max_queuesize-queue.size);
-    },100);
-}).catch((err) => {
-    log.error('listDevices', err);
+    var interval = setInterval(() => {
+        progressbar.update(max_queuesize - queue.size);
+    }, 100);
+}).catch(error => {
+    log.error('listDevices', error);
 });
