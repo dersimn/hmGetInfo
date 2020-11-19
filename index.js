@@ -5,8 +5,11 @@ const jsonfile = require('jsonfile');
 const config = require('yargs')
     .usage(pkg.name + ' ' + pkg.version + '\n' + pkg.description + '\n\nUsage: $0 [options]')
     .describe('verbosity', 'Possible values: "error", "warn", "info", "debug"')
-    .describe('ccu-address', 'IP address of your CCU')
-    .describe('ccu-port', 'Port of your CCU (use to switch between RFD and HmIP)')
+    .describe('ccu-address', 'IP address of CCU')
+    .describe('ccu-port', 'Port of CCU (use to switch between RFD and HmIP)')
+    .describe('output-destination', 'Path where to store JSON with collected data.')
+    .describe('get-paramsets', 'Collect current values of Paramsets (RPC method "getParamset"). This increases Duty Cycle!')
+    .boolean('get-paramsets')
     .alias({
         c: 'ccu-address',
         p: 'ccu-port',
@@ -14,9 +17,9 @@ const config = require('yargs')
         v: 'verbosity'
     })
     .default({
-        verbosity: 'debug',
         'ccu-port': 2001,
-        outputDestination: './output/data.json'
+        'output-destination': './output/data.json',
+        'get-paramsets': true
     })
     .demandOption([
         'ccu-address'
@@ -70,16 +73,18 @@ const client = xmlrpc.createClient({
             }
 
             // Section: getParamset
-            log.debug('getParamset', serial, channel, paramsetName);
-            try {
-                const paramset = await methodCall('getParamset', [device.ADDRESS, paramsetName]);
+            if (config.getParamsets) {
+                log.debug('getParamset', serial, channel, paramsetName);
+                try {
+                    const paramset = await methodCall('getParamset', [device.ADDRESS, paramsetName]);
 
-                // Turn { FOO: 0.5, BAR: 1.0 } into { FOO: {VALUE: 0.5}, BAR: {VALUE: 1.0} }
-                for (const [param, value] of Object.entries(paramset)) {
-                    allDevices[serial][channel].PARAMSETS[paramsetName][param].VALUE = value;
+                    // Turn { FOO: 0.5, BAR: 1.0 } into { FOO: {VALUE: 0.5}, BAR: {VALUE: 1.0} }
+                    for (const [param, value] of Object.entries(paramset)) {
+                        allDevices[serial][channel].PARAMSETS[paramsetName][param].VALUE = value;
+                    }
+                } catch (error) {
+                    log.error('getParamset', serial, channel, paramsetName, error);
                 }
-            } catch (error) {
-                log.error('getParamset', serial, channel, paramsetName, error);
             }
         }
 
